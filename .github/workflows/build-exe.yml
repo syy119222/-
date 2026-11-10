@@ -36,8 +36,20 @@ jobs:
           npm run build
 
       - name: Copy frontend to dist
-        run: xcopy /E /I /Y web-ui\dist dist
-        shell: cmd
+        shell: pwsh
+        run: |
+          Write-Host "== web-ui contents =="
+          Get-ChildItem web-ui
+          if (Test-Path web-ui/dist) {
+            New-Item -ItemType Directory -Force dist | Out-Null
+            Copy-Item -Recurse -Force web-ui/dist/* dist/
+          } elseif (Test-Path dist) {
+            Write-Host "dist already at repo root, skipping copy"
+          } else {
+            Write-Error "frontend build output not found"
+            exit 1
+          }
+          Get-ChildItem dist
 
       - name: Install Chromium into Playwright package
         env:
@@ -51,6 +63,7 @@ jobs:
           pyinstaller desktop_launcher.py
           --name XianyuMonitor
           --onedir --noconfirm
+          --distpath out
           --collect-all playwright
           --collect-submodules src
           --hidden-import uvicorn.logging
@@ -63,7 +76,7 @@ jobs:
           --add-data ".env.example;."
 
       - name: Zip result
-        run: Compress-Archive -Path dist\XianyuMonitor -DestinationPath XianyuMonitor-windows.zip
+        run: Compress-Archive -Path out\XianyuMonitor -DestinationPath XianyuMonitor-windows.zip
         shell: pwsh
 
       - name: Upload artifact
